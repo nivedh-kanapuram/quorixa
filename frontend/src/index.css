@@ -281,3 +281,15 @@ body {
     transparent
   );
 }
+
+@keyframes pop-in {
+  0% { transform: scale(.95); opacity: 0; }
+  60% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-pop {
+  animation: pop-in 420ms cubic-bezier(.2,.9,.2,1);
+}
+
+.scroll-smooth { scroll-behavior: smooth; }

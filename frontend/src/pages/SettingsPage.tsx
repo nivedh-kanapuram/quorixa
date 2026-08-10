@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "../components/ui/Card";
 import { Container } from "../components/ui/Container";
 import { Badge } from "../components/ui/Badge";
 import { Icon } from "../components/ui/Icon";
-import { useTheme } from "../hooks/useTheme";
+import { useTheme } from "../hooks/theme-context";
 import { languageOptions, version } from "../utils/format";
 import { cn } from "../utils/cn";
 import type { LanguageCode } from "../types";
+
+export const LANGUAGE_STORAGE_KEY = "quorixa-language";
 
 const appearanceOptions = [
   { id: "light", label: "Light", icon: "sun" as const, hint: "Bright & clean" },
@@ -14,9 +16,19 @@ const appearanceOptions = [
   { id: "system", label: "System", icon: "settings" as const, hint: "Follow device" },
 ];
 
+const modelDisplayName = "openai/gpt-oss-20b via Groq";
+const modelDisplayHint = "Fast and capable open-weights model for study answers";
+
 export function SettingsPage() {
   const { theme, resolvedTheme, setTheme } = useTheme();
-  const [language, setLanguage] = useState<LanguageCode>("en");
+  const [language, setLanguage] = useState<LanguageCode>(() => {
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return stored === "te" || stored === "hi" ? stored : "en";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  }, [language]);
 
   return (
     <div className="py-14 lg:py-20">
@@ -172,7 +184,7 @@ export function SettingsPage() {
             </div>
           </Card>
 
-          {/* Model */}
+          {/* AI Model */}
           <Card className="p-6 sm:p-8">
             <div className="flex items-center gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-600/25">
@@ -183,126 +195,29 @@ export function SettingsPage() {
                   AI Model
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  The Gemini model that powers your answers.
+                  The model that powers your answers.
                 </p>
               </div>
             </div>
-
-            <div
-              className="mt-6 grid gap-3 sm:grid-cols-2"
-              role="radiogroup"
-              aria-label="AI model"
-            >
-              {[
-                {
-                  id: "flash",
-                  name: "Gemini Flash",
-                  hint: "Fast · best for everyday studying",
-                  default: true,
-                },
-                {
-                  id: "pro",
-                  name: "Gemini Pro",
-                  hint: "Powerful · best for deep explanations",
-                  default: false,
-                },
-              ].map((model) => (
-                <button
-                  key={model.id}
-                  className="rounded-2xl border border-slate-200 p-5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md dark:border-white/10 dark:hover:border-white/25"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">
-                      {model.name}
-                    </span>
-                    <Badge variant={model.default ? "primary" : "neutral"}>
-                      {model.default ? "Default" : "Coming soon"}
-                    </Badge>
-                  </div>
-                  <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
-                    {model.hint}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </Card>
-
-          {/* Storage */}
-          <Card className="p-6 sm:p-8">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25">
-                <Icon name="upload" size={20} />
-              </span>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                  Storage
-                </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Space used by your documents.
-                </p>
+            <div className="mt-6 rounded-2xl border border-slate-200 p-5 dark:border-white/10">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">
+                    {modelDisplayName}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    {modelDisplayHint}
+                  </p>
+                </div>
+                <Badge variant="primary">Active</Badge>
               </div>
-            </div>
-            <div className="mt-6">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  12.6 MB of 100 MB used
-                </span>
-                <span className="text-slate-500 dark:text-slate-400">13%</span>
-              </div>
-              <div
-                className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10"
-                role="progressbar"
-                aria-valuenow={13}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label="Storage used"
-              >
-                <div className="h-full w-[13%] rounded-full bg-gradient-to-r from-emerald-500 to-teal-500" />
-              </div>
-              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                Delete documents in your library to free up space.
+              <p className="mt-4 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                Quorixa generates answers with Groq and grounds them in your
+                uploaded documents only — no open-web lookups. Document
+                embeddings are produced separately and never sent to the chat
+                provider.
               </p>
             </div>
-          </Card>
-
-          {/* Shortcuts */}
-          <Card className="p-6 sm:p-8">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-600 to-slate-800 text-white shadow-lg shadow-slate-600/25">
-                <Icon name="settings" size={20} />
-              </span>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                  Keyboard shortcuts
-                </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Move around Quorixa without touching the mouse.
-                </p>
-              </div>
-            </div>
-            <dl className="mt-6 space-y-3">
-              {[
-                { keys: "G then U", label: "Go to Upload" },
-                { keys: "G then C", label: "Open Study Chat" },
-                { keys: "G then L", label: "Open Library" },
-                { keys: "G then S", label: "Open Settings" },
-                { keys: "Shift + /", label: "Focus chat input" },
-              ].map((shortcut) => (
-                <div
-                  key={shortcut.label}
-                  className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 px-4 py-3 dark:border-white/10"
-                >
-                  <dt className="text-sm text-slate-600 dark:text-slate-300">
-                    {shortcut.label}
-                  </dt>
-                  <dd>
-                    <kbd className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs font-semibold text-slate-600 shadow-sm dark:border-white/15 dark:bg-white/10 dark:text-slate-300">
-                      {shortcut.keys}
-                    </kbd>
-                  </dd>
-                </div>
-              ))}
-            </dl>
           </Card>
 
           {/* About */}
@@ -331,7 +246,7 @@ export function SettingsPage() {
                 Grounded answers
               </Badge>
               <Badge variant="primary">English · తెలుగు · हिन्दी</Badge>
-              <Badge variant="neutral">Early access · Free</Badge>
+              <Badge variant="neutral">Portfolio project</Badge>
             </div>
           </Card>
         </div>

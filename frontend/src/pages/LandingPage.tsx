@@ -87,29 +87,26 @@ const languages = [
   { name: "Hindi", native: "हिन्दी", tag: "Native first", flag: "🇮🇳", gradient: "from-emerald-500 to-teal-600" },
 ];
 
-const testimonials = [
+const values = [
   {
-    quote:
-      "I uploaded my physics textbook and now I revise with Quorixa instead of re-reading chapters. The answers always point me to the exact page.",
-    name: "Ananya Reddy",
-    role: "B.Tech Student, Hyderabad",
-    initials: "AR",
+    title: "Your Material, Your Answers",
+    description:
+      "Ask questions about your uploaded documents and get answers grounded in your own study material.",
+    icon: "file" as IconName,
     gradient: "from-blue-600 to-violet-600",
   },
   {
-    quote:
-      "The Telugu support is what sold me. My chemistry notes are handwritten in Telugu — OCR reads them and I can ask questions in my own language.",
-    name: "Sai Kumar",
-    role: "Class 12 Student, Vijayawada",
-    initials: "SK",
+    title: "Learn in Your Language",
+    description:
+      "Study in English, తెలుగు, or हिन्दी while keeping your learning material at the center.",
+    icon: "globe" as IconName,
     gradient: "from-violet-600 to-fuchsia-600",
   },
   {
-    quote:
-      "Paste a YouTube lecture link, get the transcript, ask anything. It's like having a personal tutor who has actually read your material.",
-    name: "Priya Sharma",
-    role: "NEET Aspirant, Delhi",
-    initials: "PS",
+    title: "Answers You Can Verify",
+    description:
+      "Trace answers back to the relevant document sources instead of relying on unsupported information.",
+    icon: "check" as IconName,
     gradient: "from-emerald-600 to-teal-600",
   },
 ];
@@ -152,7 +149,7 @@ export function LandingPage() {
       <Features />
       <HowItWorks />
       <Languages />
-      <Testimonials />
+      <ValueSection />
       <Faq />
       <CtaBand />
     </div>
@@ -239,7 +236,7 @@ function Hero() {
               className="mt-8 animate-fade-in-up text-sm text-slate-500 dark:text-slate-400"
               style={{ animationDelay: "320ms" }}
             >
-              Free during early access · No credit card required
+              Grounded in your uploaded material · English · తెలుగు · हिन्दी
             </div>
           </div>
 
@@ -470,43 +467,35 @@ function Languages() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Testimonials                                                        */
+/* Product value                                                       */
 /* ------------------------------------------------------------------ */
 
-function Testimonials() {
+function ValueSection() {
   return (
-    <section id="testimonials" className="section py-24" aria-label="Testimonials">
+    <section id="value" className="section py-24" aria-label="Product value">
       <Container>
         <SectionHeading
-          eyebrow="Loved by students"
-          title="Students learn faster with Quorixa"
-          subtitle="Here's what early users from across India say."
+          eyebrow="BUILT FOR STUDENTS"
+          title="Study smarter with your own material"
+          subtitle="Upload your study material and get grounded answers, explanations, and sources from the content you actually need to learn."
         />
         <div className="grid gap-6 lg:grid-cols-3">
-          {testimonials.map((t) => (
-            <Card key={t.name} hover glass className="flex flex-col p-7">
-              <Icon name="chat" size={20} className="text-blue-500 dark:text-blue-400" />
-              <p className="mt-4 flex-1 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
-                "{t.quote}"
+          {values.map((v) => (
+            <Card key={v.title} hover glass className="flex flex-col p-7">
+              <span
+                className={cn(
+                  "flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-lg",
+                  v.gradient
+                )}
+              >
+                <Icon name={v.icon} size={22} />
+              </span>
+              <h3 className="mt-4 text-lg font-extrabold text-slate-900 dark:text-white">
+                {v.title}
+              </h3>
+              <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                {v.description}
               </p>
-              <div className="mt-6 flex items-center gap-3 border-t border-slate-200 pt-5 dark:border-white/10">
-                <span
-                  className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white",
-                    t.gradient
-                  )}
-                >
-                  {t.initials}
-                </span>
-                <span>
-                  <span className="block text-sm font-bold text-slate-900 dark:text-white">
-                    {t.name}
-                  </span>
-                  <span className="block text-xs text-slate-500 dark:text-slate-400">
-                    {t.role}
-                  </span>
-                </span>
-              </div>
             </Card>
           ))}
         </div>
@@ -596,37 +585,32 @@ function CtaBand() {
   return (
     <section className="py-24" aria-label="Get started">
       <Container>
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-violet-600 to-purple-700 px-6 py-16 text-center shadow-2xl shadow-blue-600/30 sm:px-16">
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white px-6 py-14 text-center shadow-xl shadow-slate-950/[0.04] sm:px-16 lg:py-16 dark:border-white/10 dark:bg-slate-900 dark:shadow-[0_0_60px_-16px_rgba(124,58,237,0.35)]">
           <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-            <div className="absolute -left-16 -top-16 h-56 w-56 animate-blob rounded-full bg-white/15 blur-3xl" />
+            <div className="absolute -left-20 -top-24 h-64 w-64 animate-blob rounded-full bg-blue-500/10 blur-3xl" />
             <div
-              className="absolute -bottom-20 -right-10 h-64 w-64 animate-blob rounded-full bg-cyan-300/20 blur-3xl"
-              style={{ animationDelay: "-5s" }}
+              className="absolute -bottom-24 -right-16 h-72 w-72 animate-blob rounded-full bg-violet-500/10 blur-3xl"
+              style={{ animationDelay: "-6s" }}
             />
           </div>
-          <div className="relative">
-            <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-              Start studying smarter today
+          <div className="relative mx-auto max-w-2xl">
+            <span
+              aria-hidden="true"
+              className="mx-auto block h-1.5 w-12 rounded-full bg-gradient-to-r from-blue-600 to-violet-600"
+            />
+            <h2 className="mt-6 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl dark:text-white">
+              Ready to study smarter?
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-lg text-blue-100">
-              Upload your first document and ask your first question in under a
-              minute.
+            <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-slate-600 dark:text-slate-300">
+              Upload your material and start asking questions grounded in your
+              own content.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button
-                size="lg"
-                variant="secondary"
-                onClick={() => navigate("/upload")}
-                className="!border-white/30 !bg-white/10 !text-white shadow-lg backdrop-blur hover:!bg-white/20 dark:!bg-white/10"
-              >
+              <Button size="lg" onClick={() => navigate("/upload")}>
                 Upload your material
                 <Icon name="arrow-right" size={18} />
               </Button>
-              <Button
-                size="lg"
-                onClick={() => navigate("/chat")}
-                className="!bg-white !text-blue-700 shadow-xl hover:!bg-blue-50"
-              >
+              <Button size="lg" variant="secondary" onClick={() => navigate("/chat")}>
                 Open Study Chat
               </Button>
             </div>

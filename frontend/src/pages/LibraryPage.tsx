@@ -1,16 +1,23 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Container } from "../components/ui/Container";
 import { Badge } from "../components/ui/Badge";
+import { BackLink } from "../components/ui/BackLink";
 import { Modal } from "../components/ui/Modal";
 import { FileTypeIcon } from "../components/ui/FileTypeIcon";
 import { Icon } from "../components/ui/Icon";
 import type { IconName } from "../components/ui/Icon";
-import { sampleDocuments, formatBytes, formatDate } from "../utils/format";
+import { useToast } from "../components/ui/toast-context";
+import { formatBytes, formatDate } from "../utils/format";
 import { cn } from "../utils/cn";
-import type { LibraryDocument } from "../types";
+import type { DocumentStatus, LibraryDocument } from "../types";
+import {
+  getLibraryDocuments,
+  deleteLibraryDocument,
+  reprocessLibraryDocument,
+} from "../services/library.api";
 
 type ViewMode = "grid" | "list";
 type SortMode = "newest" | "oldest" | "name";
@@ -38,44 +45,107 @@ export function LibraryPage() {
   const [sort, setSort] = useState<SortMode>("newest");
   const [documents, setDocuments] = useState<LibraryDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<LibraryDocument | null>(null);
+  const [reprocessingId, setReprocessingId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { push } = useToast();
+
+  const refresh = useCallback(
+    async (overrides: { query?: string; sortBy?: SortMode } = {}) => {
+      const search = overrides.query ?? query;
+      const sortValue = overrides.sortBy ?? sort;
+      try {
+        const sortParam = sortValue === "name" ? undefined : sortValue === "oldest" ? "uploadDate" : "-uploadDate";
+        const docs = await getLibraryDocuments({ search: search || undefined, sort: sortParam });
+        setLoadError(false);
+        setDocuments(docs);
+      } catch {
+        setDocuments([]);
+        setLoadError(true);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [query, sort]
+  );
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setDocuments(sampleDocuments);
-      setLoading(false);
-    }, 650);
-    return () => window.clearTimeout(timer);
-  }, []);
+    let cancelled = false;
+    const sortParam = sort === "name" ? undefined : sort === "oldest" ? "uploadDate" : "-uploadDate";
 
-  const visible = documents
-    .filter((doc) => {
-      if (filter !== "all" && doc.type !== filter) return false;
-      const q = query.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        doc.name.toLowerCase().includes(q) ||
-        doc.sourceName.toLowerCase().includes(q)
-      );
-    })
-    .sort((a, b) => {
-      if (sort === "name") return a.name.localeCompare(b.name);
-      if (sort === "oldest") {
-        return new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime();
-      }
-      return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
-    });
+    getLibraryDocuments({ search: query || undefined, sort: sortParam })
+      .then((docs) => {
+        if (cancelled) return;
+        setLoadError(false);
+        setDocuments(docs);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDocuments([]);
+        setLoadError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-  const confirmDelete = () => {
+    return () => {
+      cancelled = true;
+    };
+  }, [query, sort]);
+
+  const visible = documents.filter((doc) => {
+    if (filter !== "all" && doc.type !== filter) return false;
+    return true;
+  });
+
+  const sortedVisible = sort === "name"
+    ? [...visible].sort((a, b) => a.name.localeCompare(b.name))
+    : visible;
+
+  const readyCount = documents.filter(
+    (doc) => doc.status === undefined || doc.status === "Completed"
+  ).length;
+
+  const confirmDelete = async () => {
     if (!pendingDelete) return;
-    setDocuments((docs) => docs.filter((d) => d.id !== pendingDelete.id));
-    setPendingDelete(null);
+
+    try {
+      await deleteLibraryDocument(pendingDelete.id);
+      setDocuments((docs) => docs.filter((d) => d.id !== pendingDelete.id));
+      push({ title: "Document deleted", description: `"${pendingDelete.name}" was removed.`, variant: "success" });
+    } catch (error) {
+      push({
+        title: "Delete failed",
+        description: error instanceof Error ? error.message : "Could not delete the document. Please try again.",
+        variant: "error",
+      });
+    } finally {
+      setPendingDelete(null);
+    }
+  };
+
+  const handleRetry = async (doc: LibraryDocument) => {
+    setReprocessingId(doc.id);
+    try {
+      await reprocessLibraryDocument(doc.id);
+      push({ title: "Reprocessing", description: `"${doc.name}" is being processed again.`, variant: "info" });
+      await refresh();
+    } catch (error) {
+      push({
+        title: "Reprocess failed",
+        description: error instanceof Error ? error.message : "Could not reprocess the document.",
+        variant: "error",
+      });
+    } finally {
+      setReprocessingId(null);
+    }
   };
 
   return (
     <div className="py-14 lg:py-20">
       <Container>
+        <BackLink to="/" label="Back to Home" className="mb-6 -ml-2" />
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <Badge variant="primary" className="px-4 py-1.5 text-xs normal-case tracking-normal">
@@ -86,8 +156,10 @@ export function LibraryPage() {
               Your library
             </h1>
             <p className="mt-2 text-slate-600 dark:text-slate-300">
-              {documents.length} document{documents.length !== 1 ? "s" : ""} ready
-              to study
+              {documents.length} document{documents.length !== 1 ? "s" : ""} in your library
+              {readyCount === documents.length
+                ? " — ready to study"
+                : ` · ${readyCount} ready`}
             </p>
           </div>
 
@@ -179,31 +251,37 @@ export function LibraryPage() {
           <SkeletonGrid view={view} />
         ) : visible.length === 0 ? (
           <EmptyState
-            hasQuery={Boolean(query) || filter !== "all"}
-            onClear={() => {
-              setQuery("");
-              setFilter("all");
-            }}
-          />
+              hasQuery={Boolean(query) || filter !== "all"}
+              onClear={() => {
+                setQuery("");
+                setFilter("all");
+              }}
+              loadError={loadError}
+              onRetry={refresh}
+            />
         ) : view === "grid" ? (
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {visible.map((doc) => (
+            {sortedVisible.map((doc) => (
               <DocCard
                 key={doc.id}
                 doc={doc}
                 onDelete={() => setPendingDelete(doc)}
-                onStudy={() => navigate("/chat")}
+                onStudy={() => navigate("/chat", { state: { documentIds: [doc.id] } })}
+                onRetry={() => handleRetry(doc)}
+                reprocessingId={reprocessingId}
               />
             ))}
           </div>
         ) : (
           <div className="mt-10 space-y-3">
-            {visible.map((doc) => (
+            {sortedVisible.map((doc) => (
               <DocRow
                 key={doc.id}
                 doc={doc}
                 onDelete={() => setPendingDelete(doc)}
-                onStudy={() => navigate("/chat")}
+                onStudy={() => navigate("/chat", { state: { documentIds: [doc.id] } })}
+                onRetry={() => handleRetry(doc)}
+                reprocessingId={reprocessingId}
               />
             ))}
           </div>
@@ -243,11 +321,19 @@ function DocCard({
   doc,
   onDelete,
   onStudy,
+  onRetry,
+  reprocessingId,
 }: {
   doc: LibraryDocument;
   onDelete: () => void;
   onStudy: () => void;
+  onRetry: () => void;
+  reprocessingId: string | null;
 }) {
+  const ready = doc.status === undefined || doc.status === "Completed";
+  const busy = doc.status === "Pending" || doc.status === "Processing";
+  const failed = doc.status === "Failed";
+
   return (
     <Card hover className="group animate-fade-in-up overflow-hidden">
       <div
@@ -257,13 +343,17 @@ function DocCard({
       <div className="flex flex-col p-6">
         <div className="flex items-start justify-between">
           <FileTypeIcon type={doc.type} size={44} />
-          <button
-            onClick={onDelete}
-            aria-label={`Delete ${doc.name}`}
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition-all duration-200 hover:bg-rose-500/10 hover:text-rose-500 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-          >
-            <Icon name="trash" size={16} />
-          </button>
+          <div className="flex items-center gap-1">
+            {busy && <StatusBadge status={doc.status} />}
+            {failed && <StatusBadge status={doc.status} />}
+            <button
+              onClick={onDelete}
+              aria-label={`Delete ${doc.name}`}
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition-all duration-200 hover:bg-rose-500/10 hover:text-rose-500 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+            >
+              <Icon name="trash" size={16} />
+            </button>
+          </div>
         </div>
 
         <h3 className="mt-4 truncate font-bold text-slate-900 dark:text-white">
@@ -275,17 +365,46 @@ function DocCard({
 
         <div className="mt-4 flex flex-wrap gap-2">
           <Badge>{doc.type}</Badge>
-          <Badge variant="neutral">{doc.language.toUpperCase()}</Badge>
+          {ready && <StatusBadge status="Completed" />}
+          {doc.pageCount && doc.pageCount > 0 ? (
+            <Badge variant="neutral">{doc.pageCount} page{doc.pageCount > 1 ? "s" : ""}</Badge>
+          ) : (
+            <Badge variant="neutral">{doc.language.toUpperCase()}</Badge>
+          )}
         </div>
+
+        {failed && (
+          <p className="mt-3 rounded-lg bg-rose-500/5 px-3 py-2 text-xs text-rose-600 dark:text-rose-400">
+            Processing failed. You can retry or delete this document.
+          </p>
+        )}
 
         <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-white/10">
           <span className="text-xs text-slate-500 dark:text-slate-400">
             {doc.size > 0 ? formatBytes(doc.size) : "Video"} · {formatDate(doc.uploadedAt)}
           </span>
-          <Button size="sm" onClick={onStudy}>
-            <Icon name="chat" size={14} />
-            Study
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            {failed && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={onRetry}
+                disabled={reprocessingId === doc.id}
+              >
+                <Icon name="loader" size={13} className={reprocessingId === doc.id ? "animate-spin" : ""} />
+                Retry
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={onStudy}
+              disabled={!ready || busy}
+              title={!ready ? "This document is not ready to study yet." : undefined}
+            >
+              <Icon name="chat" size={14} />
+              {busy ? "Processing…" : failed ? "Not ready" : "Study"}
+            </Button>
+          </div>
         </div>
       </div>
     </Card>
@@ -296,11 +415,19 @@ function DocRow({
   doc,
   onDelete,
   onStudy,
+  onRetry,
+  reprocessingId,
 }: {
   doc: LibraryDocument;
   onDelete: () => void;
   onStudy: () => void;
+  onRetry: () => void;
+  reprocessingId: string | null;
 }) {
+  const ready = doc.status === undefined || doc.status === "Completed";
+  const busy = doc.status === "Pending" || doc.status === "Processing";
+  const failed = doc.status === "Failed";
+
   return (
     <Card className="group flex animate-fade-in-up items-center gap-4 p-4">
       <FileTypeIcon type={doc.type} size={36} />
@@ -314,8 +441,8 @@ function DocRow({
         </p>
       </div>
       <div className="hidden shrink-0 gap-2 sm:flex">
+        {!ready && <StatusBadge status={doc.status} />}
         <Badge>{doc.type}</Badge>
-        <Badge variant="neutral">{doc.language.toUpperCase()}</Badge>
       </div>
       <div className="flex shrink-0 items-center gap-1">
         <button
@@ -325,12 +452,57 @@ function DocRow({
         >
           <Icon name="trash" size={16} />
         </button>
-        <Button size="sm" onClick={onStudy}>
+        {failed && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={onRetry}
+            disabled={reprocessingId === doc.id}
+          >
+            <Icon name="loader" size={13} className={reprocessingId === doc.id ? "animate-spin" : ""} />
+            Retry
+          </Button>
+        )}
+        <Button
+          size="sm"
+          onClick={onStudy}
+          disabled={!ready}
+          title={!ready ? "This document is not ready to study yet." : undefined}
+        >
           <Icon name="chat" size={14} />
-          Study
+          {busy ? "Processing…" : failed ? "Not ready" : "Study"}
         </Button>
       </div>
     </Card>
+  );
+}
+
+function StatusBadge({
+  status,
+}: {
+  status: DocumentStatus | undefined;
+}) {
+  if (status === "Failed") {
+    return (
+      <Badge variant="danger" className="normal-case tracking-normal">
+        <Icon name="close" size={11} />
+        Failed
+      </Badge>
+    );
+  }
+  if (status === "Pending" || status === "Processing") {
+    return (
+      <Badge variant="warning" className="normal-case tracking-normal">
+        <Icon name="loader" size={11} className="animate-spin" />
+        Processing
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="success" className="normal-case tracking-normal">
+      <Icon name="check" size={11} />
+      Ready
+    </Badge>
   );
 }
 
@@ -368,7 +540,17 @@ function SkeletonGrid({ view }: { view: ViewMode }) {
   );
 }
 
-function EmptyState({ hasQuery, onClear }: { hasQuery: boolean; onClear: () => void }) {
+function EmptyState({
+  hasQuery,
+  onClear,
+  loadError,
+  onRetry,
+}: {
+  hasQuery: boolean;
+  onClear: () => void;
+  loadError?: boolean;
+  onRetry?: () => void;
+}) {
   const navigate = useNavigate();
 
   return (
@@ -377,14 +559,23 @@ function EmptyState({ hasQuery, onClear }: { hasQuery: boolean; onClear: () => v
         <Icon name="library" size={34} />
       </span>
       <h2 className="mt-6 text-xl font-bold text-slate-900 dark:text-white">
-        {hasQuery ? "No matches found" : "Your library is empty"}
+        {loadError ? "Unable to load documents" : hasQuery ? "No matches found" : "Your library is empty"}
       </h2>
       <p className="mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">
-        {hasQuery
+        {loadError
+          ? "We couldn't fetch your documents. Check your connection and try again."
+          : hasQuery
           ? "Try a different search term."
           : "Upload a PDF, image, note or YouTube video to start studying."}
       </p>
-      {hasQuery ? (
+      {loadError ? (
+        <div className="mt-6 flex items-center gap-3">
+          <Button variant="secondary" onClick={onRetry}>
+            Retry
+          </Button>
+          <Button onClick={() => navigate("/upload")}>Upload</Button>
+        </div>
+      ) : hasQuery ? (
         <Button variant="secondary" className="mt-6" onClick={onClear}>
           Clear search
         </Button>

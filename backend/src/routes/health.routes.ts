@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 import { Router } from 'express';
 import { HealthController } from '../controllers/health.controller';

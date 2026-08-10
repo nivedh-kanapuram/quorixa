@@ -1,5 +1,5 @@
 import { Icon } from "../ui/Icon";
-import { useTheme } from "../../hooks/useTheme";
+import { useTheme } from "../../hooks/theme-context";
 import { cn } from "../../utils/cn";
 
 export function ThemeToggleButton() {

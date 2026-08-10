@@ -12,6 +12,8 @@ const allowedMimeTypes = [
   'image/png',
   'image/jpeg',
   'image/jpg',
+  'text/plain',
+  'text/markdown',
 ];
 
 const storage = multer.diskStorage({
@@ -25,12 +27,18 @@ const storage = multer.diskStorage({
   },
 });
 
+const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.txt', '.md'];
+
 const fileFilter = (
   _req: Request,
   file: Express.Multer.File,
-  cb: FileFilterCallback,
+  cb: FileFilterCallback
 ): void => {
-  if (!allowedMimeTypes.includes(file.mimetype)) {
+  const extension = path.extname(file.originalname).toLowerCase();
+  if (
+    !allowedMimeTypes.includes(file.mimetype) &&
+    !allowedExtensions.includes(extension)
+  ) {
     return cb(new Error('Unsupported file type'));
   }
   cb(null, true);

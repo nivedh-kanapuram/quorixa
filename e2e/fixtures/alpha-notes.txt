@@ -1,0 +1,18 @@
+# Alpha Study Notes
+
+## Introduction
+This is a plain-text study note used by the QUORIXA audit suite.
+The unique marker for this document is ALPHA-TXT-5Q2.
+Remember it when asked about this file.
+
+## Paragraphs of substance
+Photosynthesis happens in chloroplasts and converts light energy into chemical
+energy stored in glucose. Plants, algae and some bacteria perform it.
+
+## Bilingual section
+తెలుగు: ఇది టెలుగు భాషలో రాసిన వచనం.
+हिन्दी: यह हिंदी भाषा में लिखा गया पाठ है.
+English: Telugu and Hindi text should survive the pipeline untouched.
+
+## Final line
+End marker: ALPHA-TXT-0052 confirmed.

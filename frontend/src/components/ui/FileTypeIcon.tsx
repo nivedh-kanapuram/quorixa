@@ -38,10 +38,3 @@ export function FileTypeIcon({ type, size = 22, className = "" }: FileTypeIconPr
     </span>
   );
 }
-
-export const fileTypeLabel: Record<FileType, string> = {
-  pdf: "PDF",
-  image: "Image",
-  note: "Note",
-  youtube: "YouTube",
-};

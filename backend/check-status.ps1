@@ -1,57 +1,36 @@
 #!/usr/bin/env powershell
-# Simple Backend Status Checker
+# QUORIXA Backend Status Checker
+# Checks the backend at the current project path on port 5000.
 
-Write-Host "=== Quorixa Backend Status ===" -ForegroundColor Green
+$ErrorActionPreference = 'SilentlyContinue'
 
-$backendPath = "C:\Users\mrniv\OneDrive\Desktop\projects\QUORIXA\quorixa\backend"
-Set-Location -LiteralPath $backendPath
+$backendPath = 'C:\Users\mrniv\OneDrive\Desktop\projects\QUORIXA\backend'
+$healthUrl = 'http://localhost:5000/api/v1/health'
 
-function Check-File($path) {
-    if (Test-Path $path) {
-        Write-Host "✅ $path exists" -ForegroundColor Green
-        return $true
-    } else {
-        Write-Host "❌ $path missing" -ForegroundColor Red
-        return $false
-    }
-}
+Write-Host '=== QUORIXA Backend Status ===' -ForegroundColor Green
 
-# Check key files
-Write-Host "\n📂 Checking backend structure..." -ForegroundColor Yellow
-Check-File "package.json"
-Check-File "tsconfig.json"
-Check-File "src/app.ts"
-Check-File "src/server.ts"
-Check-File "src/routes/health.routes.ts"
-Check-File "src/controllers/health.controller.ts"
+Write-Host "Backend folder: $backendPath" -ForegroundColor Yellow
+Write-Host -NoNewline '   package.json  '
+Write-Host (if (Test-Path (Join-Path $backendPath 'package.json')) { '[OK]' } else { '[MISSING]' })
+Write-Host -NoNewline '   src/app.ts    '
+Write-Host (if (Test-Path (Join-Path $backendPath 'src\app.ts')) { '[OK]' } else { '[MISSING]' })
+Write-Host -NoNewline '   src/server.ts '
+Write-Host (if (Test-Path (Join-Path $backendPath 'src\server.ts')) { '[OK]' } else { '[MISSING]' })
+Write-Host -NoNewline '   .env exists   '
+Write-Host (if (Test-Path (Join-Path $backendPath '.env')) { '[OK]' } else { '[MISSING]' })
 
-# Check directories
-Write-Host "\n📁 Checking directories..." -ForegroundColor Yellow
-Check-File "src/"
-Check-File "src/routes/"
-Check-File "src/controllers/"
-Check-File "uploads/"
-Check-File "temp/"
-
-# Health endpoint test
-Write-Host "\n🌐 Testing health endpoint..." -ForegroundColor Yellow
+Write-Host "Testing health endpoint at $healthUrl ..." -ForegroundColor Yellow
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3000/api/health" -TimeoutSec 3 -ErrorAction Stop
-    Write-Host "✅ Backend is running!" -ForegroundColor Green
-    Write-Host "Response: $response" -ForegroundColor Cyan
+    $response = Invoke-RestMethod -Uri $healthUrl -TimeoutSec 4
+    Write-Host '[OK] Backend is running and healthy!' -ForegroundColor Green
+    Write-Host "Response: $($response | ConvertTo-Json -Compress)" -ForegroundColor Cyan
 } catch {
-    Write-Host "❌ Backend is not responding" -ForegroundColor Red
-    Write-Host "You can start it with: npm run dev" -ForegroundColor Yellow
+    Write-Host '[ERROR] Backend is not responding.' -ForegroundColor Red
+    Write-Host '         Start it with:  powershell -File .\start-backend.ps1' -ForegroundColor Yellow
 }
 
-Write-Host "\n🎉 Summary:" -ForegroundColor Green
-Write-Host "   - Express server with CORS and JSON middleware" -ForegroundColor White
-Write-Host "   - Health check endpoint at /api/health" -ForegroundColor White
-Write-Host "   - TypeScript configuration ready" -ForegroundColor White
-Write-Host "   - All dependencies installed" -ForegroundColor White
-Write-Host "   - Architecture ready for upload/chat/RAG features" -ForegroundColor White
-
-Write-Host "\n📋 Next steps:" -ForegroundColor Yellow
-Write-Host "   1. Start backend: npm run dev" -ForegroundColor Cyan
-Write-Host "   2. Frontend ready at quorixa-frontend/" -ForegroundColor Cyan
-Write-Host "   3. Complete features: upload, AI chat, RAG pipeline" -ForegroundColor Cyan
+Write-Host 'Useful endpoints:' -ForegroundColor White
+Write-Host '   Health:   http://localhost:5000/api/v1/health' -ForegroundColor Cyan
+Write-Host '   Library:  http://localhost:5000/api/v1/library' -ForegroundColor Cyan
+Write-Host '   Chat:     http://localhost:5000/api/v1/chat/query' -ForegroundColor Cyan
+Write-Host '   Frontend: http://localhost:5173' -ForegroundColor Cyan

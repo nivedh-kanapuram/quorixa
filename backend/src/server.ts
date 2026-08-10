@@ -1,8 +1,7 @@
-"use strict";
+'use strict';
 
 import { App } from './app';
 import { connectDatabase, closeDatabase } from './config/database';
-import { env } from './config/env';
 import { logger } from './config/logger';
 
 const start = async (): Promise<void> => {

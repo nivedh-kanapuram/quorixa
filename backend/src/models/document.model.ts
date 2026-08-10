@@ -9,6 +9,12 @@ export interface DocumentMetadata extends Document {
   size: number;
   uploadedAt: Date;
   status: DocumentStatus;
+  title?: string;
+  text?: string;
+  pageCount?: number;
+  metadata?: Record<string, unknown>;
+  processingError?: string;
+  processedAt?: Date;
 }
 
 const documentSchema = new Schema<DocumentMetadata, Model<DocumentMetadata>>(
@@ -24,10 +30,19 @@ const documentSchema = new Schema<DocumentMetadata, Model<DocumentMetadata>>(
       default: 'Pending',
       required: true,
     },
+    text: { type: String, default: '' },
+    title: { type: String },
+    pageCount: { type: Number, default: 0 },
+    metadata: { type: Schema.Types.Mixed, default: {} },
+    processingError: { type: String, default: '' },
+    processedAt: { type: Date },
   },
   {
     timestamps: true,
-  },
+  }
 );
 
-export const DocumentModel = mongoose.model<DocumentMetadata>('Document', documentSchema);
+export const DocumentModel = mongoose.model<DocumentMetadata>(
+  'Document',
+  documentSchema
+);

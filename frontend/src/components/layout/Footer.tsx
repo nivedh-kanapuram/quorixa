@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Icon } from "../ui/Icon";
 import { Container } from "../ui/Container";
+import { BrandLockup } from "../ui/BrandLockup";
 
 const linkColumns = [
   {
@@ -29,40 +30,14 @@ export function Footer() {
       <Container className="py-16">
         <div className="grid gap-12 lg:grid-cols-12">
           <div className="lg:col-span-5">
-            <Link to="/" className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-600">
-                <Icon name="book" size={18} className="text-white" />
-              </span>
-              <span className="text-lg font-bold text-slate-900 dark:text-white">
-                Quorixa
-              </span>
+            <Link to="/" className="inline-flex items-center" aria-label="Quorixa — back to home">
+              <BrandLockup iconClassName="h-8 w-8" textClassName="text-lg" />
             </Link>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-500 dark:text-slate-400">
               The AI-powered multilingual study assistant. Learn from your own
               material — PDFs, images, notes and YouTube videos — with answers
               that always cite their sources.
             </p>
-            <div className="mt-6 flex items-center gap-3">
-              <a
-                href="https://github.com"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Quorixa on GitHub"
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-900 dark:border-white/15 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
-              >
-                <Icon name="github" size={17} />
-              </a>
-              <a
-                href="https://opencode.ai"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Built with opencode"
-                className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-500 transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-900 dark:border-white/15 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
-              >
-                <Icon name="sparkles" size={14} />
-                Built with opencode
-              </a>
-            </div>
           </div>
 
           {linkColumns.map((col) => (

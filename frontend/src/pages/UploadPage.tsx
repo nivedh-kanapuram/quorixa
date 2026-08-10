@@ -1,16 +1,31 @@
 import { useRef, useState, type DragEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Container } from "../components/ui/Container";
 import { Badge } from "../components/ui/Badge";
+import { BackLink } from "../components/ui/BackLink";
 import { Icon } from "../components/ui/Icon";
 import type { IconName } from "../components/ui/Icon";
 import { FileTypeIcon } from "../components/ui/FileTypeIcon";
-import { formatBytes, formatTime, sampleUploads } from "../utils/format";
+import { formatBytes, formatTime } from "../utils/format";
 import { cn } from "../utils/cn";
 import type { FileType, UploadStatus } from "../types";
+import { uploadDocument, uploadYoutubeTranscript } from "../services/document.api";
+import { useToast } from "../components/ui/toast-context";
 
 const MAX_SIZE = 10 * 1024 * 1024;
+
+const LANGUAGE_LABELS: Record<string, string> = {
+  eng: "English",
+  tel: "తెలుగు",
+  hin: "हिन्दी",
+};
+
+const formatLanguages = (languages: string[]): string =>
+  languages
+    .map((lang) => LANGUAGE_LABELS[lang] ?? lang)
+    .join(" + ");
 
 interface UploadItem {
   id: string;
@@ -20,6 +35,7 @@ interface UploadItem {
   status: UploadStatus;
   progress: number;
   uploadedAt: string;
+  documentId?: string;
   error?: string;
 }
 
@@ -41,7 +57,7 @@ const formats: { type: FileType; title: string; hint: string; icon: IconName; gr
   {
     type: "note",
     title: "Text Notes",
-    hint: "Plain text study notes (.txt)",
+    hint: "Plain text study notes (.txt / .md)",
     icon: "note",
     gradient: "from-sky-500 to-blue-600",
   },
@@ -57,8 +73,8 @@ const formats: { type: FileType; title: string; hint: string; icon: IconName; gr
 function detectType(name: string): FileType {
   const lower = name.toLowerCase();
   if (lower.endsWith(".pdf")) return "pdf";
-  if (lower.endsWith(".txt")) return "note";
-  if (/\.(png|jpe?g|webp|gif)$/.test(lower)) return "image";
+  if (lower.endsWith(".txt") || lower.endsWith(".md")) return "note";
+  if (/\.(png|jpe?g)$/.test(lower)) return "image";
   return "pdf";
 }
 
@@ -66,9 +82,57 @@ export function UploadPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [items, setItems] = useState<UploadItem[]>(
-    sampleUploads.map((f) => ({ ...f, progress: f.status === "completed" ? 100 : 40 }))
-  );
+  const [items, setItems] = useState<UploadItem[]>([]);
+  const navigate = useNavigate();
+  const { push } = useToast();
+
+  const uploadUsingBackend = async (item: UploadItem, file: File) => {
+    try {
+      setItems((prev) =>
+        prev.map((existing) =>
+          existing.id === item.id
+            ? { ...existing, status: "uploading", progress: 10 }
+            : existing
+        )
+      );
+
+      const result = await uploadDocument(file);
+      const languages = result.data.languages ?? [];
+      const languageNote = languages.length
+        ? ` (${formatLanguages(languages)} detected)`
+        : "";
+      push({ title: "Ready to study", description: `"${file.name}" was processed and is available in your library${languageNote}.`, variant: "success" });
+
+      setItems((prev) =>
+        prev.map((existing) =>
+          existing.id === item.id
+            ? {
+                ...existing,
+                status: "completed",
+                progress: 100,
+                uploadedAt: result.data.uploadedAt,
+                documentId: result.data.id,
+              }
+            : existing
+        )
+      );
+    } catch (error) {
+      setItems((prev) =>
+        prev.map((existing) =>
+          existing.id === item.id
+            ? {
+                ...existing,
+                status: "error",
+                progress: 0,
+                error:
+                  error instanceof Error ? error.message : "Upload failed",
+              }
+            : existing
+        )
+      );
+      push({ title: 'Upload failed', description: error instanceof Error ? error.message : 'Upload failed', variant: 'error' });
+    }
+  };
 
   const addFiles = (files: FileList | File[]) => {
     const now = new Date().toISOString();
@@ -88,34 +152,24 @@ export function UploadPage() {
         });
         return;
       }
+
       next.push({
         id: `up-${Date.now()}-${Math.random()}`,
         name: file.name,
         type: detectType(file.name),
         size: file.size,
         status: "uploading",
-        progress: 0,
+        progress: 5,
         uploadedAt: now,
       });
     });
 
     setItems((prev) => [...next, ...prev]);
 
-    next.forEach((item) => {
+    next.forEach((item, index) => {
       if (item.status === "error") return;
-      let progress = 0;
-      const timer = window.setInterval(() => {
-        progress = Math.min(100, progress + 7 + Math.random() * 12);
-        setItems((prev) =>
-          prev.map((p) => (p.id === item.id ? { ...p, progress: Math.round(progress) } : p))
-        );
-        if (progress >= 100) {
-          window.clearInterval(timer);
-          setItems((prev) =>
-            prev.map((p) => (p.id === item.id ? { ...p, status: "completed" } : p))
-          );
-        }
-      }, 180);
+      const file = Array.from(files)[index];
+      uploadUsingBackend(item, file);
     });
   };
 
@@ -136,11 +190,12 @@ export function UploadPage() {
     setItems((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const fetchTranscript = () => {
+  const fetchTranscript = async () => {
     const url = youtubeUrl.trim();
     if (!url) return;
     setYoutubeUrl("");
     const id = `up-${Date.now()}`;
+
     setItems((prev) => [
       {
         id,
@@ -154,24 +209,43 @@ export function UploadPage() {
       ...prev,
     ]);
 
-    let progress = 0;
-    const timer = window.setInterval(() => {
-      progress = Math.min(100, progress + 9 + Math.random() * 14);
+    try {
+      const result = await uploadYoutubeTranscript(url);
       setItems((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, progress: Math.round(progress) } : p))
+        prev.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                status: "completed",
+                progress: 100,
+                uploadedAt: result.data.uploadedAt,
+                documentId: result.data.id,
+                name: result.data.originalFilename,
+              }
+            : p
+        )
       );
-      if (progress >= 100) {
-        window.clearInterval(timer);
-        setItems((prev) =>
-          prev.map((p) => (p.id === id ? { ...p, status: "completed" } : p))
-        );
-      }
-    }, 220);
+      push({ title: "Ready to study", description: `"${result.data.originalFilename}" was processed.`, variant: "success" });
+    } catch (error) {
+      setItems((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                status: "error",
+                progress: 0,
+                error: error instanceof Error ? error.message : "Upload failed",
+              }
+            : p
+        )
+      );
+    }
   };
 
   return (
     <div className="py-14 lg:py-20">
       <Container>
+        <BackLink to="/library" label="Back to Library" className="mb-4 -ml-2" />
         <div className="mx-auto max-w-2xl text-center">
           <Badge variant="primary" className="px-4 py-1.5 text-xs normal-case tracking-normal">
             <Icon name="upload" size={13} />
@@ -235,7 +309,7 @@ export function UploadPage() {
             ref={inputRef}
             type="file"
             multiple
-            accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt"
+            accept=".pdf,.png,.jpg,.jpeg,.txt,.md"
             className="hidden"
             onChange={(e) => {
               if (e.target.files?.length) addFiles(e.target.files);
@@ -272,7 +346,7 @@ export function UploadPage() {
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 text-white shadow-lg shadow-red-500/25">
               <Icon name="youtube" size={22} />
             </span>
-            <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                 Study from a YouTube video
               </h3>
@@ -325,7 +399,7 @@ export function UploadPage() {
                 <Card key={file.id} className="animate-fade-in-up p-4">
                   <div className="flex items-center gap-4">
                     <FileTypeIcon type={file.type} size={40} />
-                    <div className="min-w-0 flex-1">
+                      <div className={cn("min-w-0 flex-1", file.status === "completed" && "animate-pop")}>
                       <div className="flex items-center justify-between gap-3">
                         <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
                           {file.name}
@@ -341,15 +415,32 @@ export function UploadPage() {
                         <div
                           className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10"
                           role="progressbar"
-                          aria-valuenow={file.progress}
+                          aria-valuenow={file.status === "uploading" ? file.progress : undefined}
                           aria-valuemin={0}
                           aria-valuemax={100}
                           aria-label={`Upload progress for ${file.name}`}
                         >
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-blue-600 to-violet-600 transition-all duration-300"
-                            style={{ width: `${file.progress}%` }}
+                            className={cn(
+                              "h-full rounded-full bg-gradient-to-r from-blue-600 to-violet-600 transition-all duration-300",
+                              file.status === "processing" && "w-1/2 animate-pulse"
+                            )}
+                            style={file.status === "uploading" ? { width: `${file.progress}%` } : undefined}
                           />
+                        </div>
+                      )}
+                      {file.status === "completed" && file.documentId && (
+                        <div className="mt-2.5 flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => navigate("/chat", { state: { documentIds: [file.documentId] } })}
+                          >
+                            <Icon name="chat" size={13} />
+                            Study now
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={() => navigate("/library")}>
+                            View library
+                          </Button>
                         </div>
                       )}
                     </div>

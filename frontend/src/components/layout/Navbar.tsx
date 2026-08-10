@@ -4,6 +4,7 @@ import { Icon } from "../ui/Icon";
 import { Button } from "../ui/Button";
 import { ThemeToggleButton } from "./ThemeToggleButton";
 import { cn } from "../../utils/cn";
+import { BrandLockup } from "../ui/BrandLockup";
 
 const navItems = [
   { to: "/", label: "Home" },
@@ -37,13 +38,11 @@ export function Navbar() {
         className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8"
         aria-label="Main navigation"
       >
-        <Link to="/" className="group flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 shadow-lg shadow-blue-600/25 transition-transform duration-300 group-hover:scale-105">
-            <Icon name="book" size={18} className="text-white" />
-          </span>
-          <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
-            Quorixa
-          </span>
+        <Link to="/" className="group flex shrink-0 items-center" aria-label="Quorixa — back to home">
+          <BrandLockup
+            iconClassName="h-9 w-9 transition-transform duration-300 group-hover:scale-[1.03]"
+            textClassName="text-lg"
+          />
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">
@@ -68,15 +67,6 @@ export function Navbar() {
 
         <div className="flex items-center gap-2.5">
           <ThemeToggleButton />
-          <a
-            href="https://github.com"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Quorixa on GitHub"
-            className="hidden h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow dark:border-white/15 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10 sm:flex"
-          >
-            <Icon name="github" size={18} />
-          </a>
           <Link to="/upload" className="hidden md:block">
             <Button size="sm">Get Started</Button>
           </Link>

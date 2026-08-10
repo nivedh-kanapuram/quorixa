@@ -4,6 +4,8 @@ export type UploadStatus = "uploading" | "uploaded" | "processing" | "completed"
 
 export type LanguageCode = "en" | "te" | "hi";
 
+export type DocumentStatus = "Pending" | "Processing" | "Completed" | "Failed";
+
 export type Role = "user" | "assistant";
 
 export interface UploadedFile {
@@ -23,6 +25,8 @@ export interface LibraryDocument {
   sourceName: string;
   language: LanguageCode;
   uploadedAt: string;
+  status?: DocumentStatus;
+  pageCount?: number;
 }
 
 export interface SourceRef {

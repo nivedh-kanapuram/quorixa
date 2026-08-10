@@ -134,10 +134,3 @@ export function Icon({ name, size = 20, ...rest }: IconProps) {
   const Component = icons[name];
   return <Component size={size} aria-hidden="true" {...rest} />;
 }
-
-export const fileTypeIcon: Record<string, IconName> = {
-  pdf: "file",
-  image: "image",
-  note: "note",
-  youtube: "youtube",
-};
