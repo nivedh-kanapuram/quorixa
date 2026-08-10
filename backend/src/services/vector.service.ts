@@ -18,6 +18,9 @@ export const createDocumentEmbeddings = async (
     throw new Error('Document text is required for embedding generation');
   }
 
+  logger.info({ documentId }, 'Removing existing chunks for document');
+  await ChunkModel.deleteMany({ documentId: documentId.toString() }).exec();
+
   logger.info({ documentId }, 'Chunking started');
   const chunks = chunkText(documentId.toString(), document.text);
   logger.info({ documentId, chunks: chunks.length }, 'Chunking completed');

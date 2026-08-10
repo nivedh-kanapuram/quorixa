@@ -135,15 +135,21 @@ export function StudyChatPage() {
         role: "assistant",
         content: response.answer,
         timestamp: new Date().toISOString(),
-        sources: response.sources?.map((source) => {
-          const doc = documentLookup.get(source.documentId);
-          return {
-            id: source.documentId,
-            label: doc?.name ?? `Document ${source.documentId}`,
-            type: doc?.type ?? "note",
-            snippet: `Chunk ${source.chunkIndex + 1}`,
-          };
-        }),
+        sources: Array.from(
+          new Map(
+            (response.sources ?? []).map((source) => {
+              const doc = documentLookup.get(source.documentId);
+              return [
+                source.documentId,
+                {
+                  id: source.documentId,
+                  label: doc?.name ?? `Document ${source.documentId}`,
+                  type: doc?.type ?? "note",
+                },
+              ] as const;
+            })
+          ).values()
+        ),
       };
 
       setSessions((prev) => ({
@@ -507,49 +513,24 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           <span className="text-[11px] text-slate-400 dark:text-slate-500">
             {formatTime(message.timestamp)}
           </span>
-          {!isUser && message.sources && <SourceChip sources={message.sources} />}
         </div>
 
-        {!isUser && message.sources && (
-          <div className="mt-2.5 space-y-1.5">
-            {message.sources.map((src) => (
-              <SourceCard key={src.id} source={src} />
-            ))}
-          </div>
+        {!isUser && message.sources && message.sources.length > 0 && (
+          <SourceFrom sources={message.sources} />
         )}
       </div>
     </div>
   );
 }
 
-function SourceChip({ sources }: { sources: SourceRef[] }) {
+function SourceFrom({ sources }: { sources: SourceRef[] }) {
   return (
-    <Badge
-      variant="primary"
-      className="cursor-pointer normal-case tracking-normal transition-all duration-200 hover:-translate-y-0.5"
-    >
-      <Icon name="book" size={11} />
-      {sources.length} source{sources.length > 1 ? "s" : ""}
-    </Badge>
-  );
-}
-
-function SourceCard({ source }: { source: SourceRef }) {
-  return (
-    <button
-      className="flex w-full max-w-md items-center gap-3 rounded-xl border border-slate-200 bg-white/70 px-3.5 py-2.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-400/60 hover:shadow-md dark:border-white/10 dark:bg-white/5"
-    >
-      <FileTypeIcon type={source.type} size={22} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs font-semibold text-slate-800 dark:text-slate-100">
-          {source.label}
-        </span>
-        <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">
-          {source.snippet}
-        </span>
+    <p className="mt-1.5 flex items-center gap-1.5 px-1 text-[11px] text-slate-400 dark:text-slate-500">
+      <Icon name="file" size={12} className="shrink-0" />
+      <span className="min-w-0 truncate">
+        Based on: {sources.map((source) => source.label).join(" · ")}
       </span>
-      <Icon name="chevron-right" size={14} className="shrink-0 text-slate-400" />
-    </button>
+    </p>
   );
 }
 

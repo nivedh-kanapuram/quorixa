@@ -23,6 +23,32 @@ const chatSchema = z.object({
   language: z.enum(['en', 'te', 'hi']).optional(),
 });
 
+const MAX_CONTEXT_CHARACTERS = 6000;
+
+const selectContextChunks = (
+  chunks: { text: string }[]
+): { text: string }[] => {
+  const included: { text: string }[] = [];
+  let total = 0;
+
+  for (const chunk of chunks) {
+    if (total + chunk.text.length <= MAX_CONTEXT_CHARACTERS) {
+      included.push(chunk);
+      total += chunk.text.length;
+      continue;
+    }
+
+    const budget = MAX_CONTEXT_CHARACTERS - total;
+    if (budget > 0) {
+      included.push({ text: chunk.text.slice(0, budget) });
+      total = MAX_CONTEXT_CHARACTERS;
+    }
+    break;
+  }
+
+  return included;
+};
+
 const buildPrompt = (
   question: string,
   language: string | undefined,
@@ -36,7 +62,9 @@ const buildPrompt = (
   const system = [
     'You are a helpful study assistant for students.',
     'You must answer ONLY using the supplied context chunks. Never use outside knowledge or the open web.',
-    "If the answer cannot be found inside the context, reply exactly: 'I couldn't find that information in the uploaded documents.'",
+    'If the specific information asked about is present in the context, answer using that content only.',
+    'If the context mentions the topic but does not contain the specific detail asked for, describe what the document says about it and state clearly that the specific detail is not provided in the uploaded documents.',
+    "If the topic is not mentioned anywhere in the context, reply exactly: 'I couldn't find that information in the uploaded documents.'",
     'Do not mention that you were given context chunks.',
   ]
     .filter(Boolean)
@@ -99,17 +127,31 @@ export class ChatController {
         }
       }
 
-      const relevantChunks = await retrieveRelevantChunks(
+      const retrievedChunks = await retrieveRelevantChunks(
         question,
         documentIds
       );
+      const includedChunks = selectContextChunks(retrievedChunks);
       const messages = buildPrompt(
         question,
         LANGUAGE_MAP[language ?? ''] ?? undefined,
-        relevantChunks
+        includedChunks
       );
       logger.info(
-        { question, retrievedChunks: relevantChunks.length },
+        {
+          question,
+          retrievedChunks: retrievedChunks.length,
+          includedChunks: includedChunks.length,
+          contextCharacters: includedChunks.reduce(
+            (total, chunk) => total + chunk.text.length,
+            0
+          ),
+          questionCharacters: question.length,
+          totalPromptCharacters: messages.reduce(
+            (total, message) => total + message.content.length,
+            0
+          ),
+        },
         'Grounded prompt built'
       );
 
@@ -125,7 +167,7 @@ export class ChatController {
         success: true,
         answer,
         provider: result.provider,
-        sources: relevantChunks.map((chunk) => ({
+        sources: retrievedChunks.map((chunk) => ({
           documentId: chunk.documentId,
           chunkIndex: chunk.chunkIndex,
           score: chunk.score,

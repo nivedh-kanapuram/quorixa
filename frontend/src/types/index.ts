@@ -33,7 +33,6 @@ export interface SourceRef {
   id: string;
   label: string;
   type: FileType;
-  snippet: string;
 }
 
 export interface ChatMessage {

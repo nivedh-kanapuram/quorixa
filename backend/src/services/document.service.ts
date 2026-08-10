@@ -375,13 +375,31 @@ export const reprocessDocumentById = async (
     await document.updateOne({ status: 'Processing', processingError: '' });
     logger.info({ documentId: document._id }, 'Reprocessing started');
 
-    const processedData = await processStoredDocument(document, filePath);
+    let textToUse = document.text?.trim() ?? '';
+    let pageCount = document.pageCount ?? 0;
+    let metadata = document.metadata ?? {};
 
-    await document.updateOne({
-      text: processedData.text,
-      pageCount: processedData.pageCount,
-      metadata: processedData.metadata,
-    });
+    if (!textToUse) {
+      logger.info(
+        { documentId: document._id, mimeType: document.mimeType },
+        'No extracted text available; reprocessing stored file'
+      );
+      const processedData = await processStoredDocument(document, filePath);
+      textToUse = processedData.text;
+      pageCount = processedData.pageCount;
+      metadata = processedData.metadata;
+
+      await document.updateOne({
+        text: textToUse,
+        pageCount,
+        metadata,
+      });
+    } else {
+      logger.info(
+        { documentId: document._id },
+        'Reprocessing using existing extracted text'
+      );
+    }
 
     logger.info({ documentId: document._id }, 'Embedding regeneration started');
     const embeddingResult = await createDocumentEmbeddings(
